@@ -1,0 +1,13 @@
+{
+  "name": "ppt-agent",
+  "description": "端到端 PPT 生成技能:需求调研→大纲→检索→策划→整页 SVG 设计,产出可逐元素编辑的 .pptx + 网页预览。",
+  "version": "0.1.0",
+  "author": {
+    "name": "joker-sxj",
+    "url": "https://github.com/joker-sxj"
+  },
+  "homepage": "https://github.com/joker-sxj/ppt-agent",
+  "repository": "https://github.com/joker-sxj/ppt-agent",
+  "license": "MIT",
+  "keywords": ["ppt", "powerpoint", "slides", "presentation", "svg", "deck"]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "joker-sxj",
+  "owner": {
+    "name": "joker-sxj",
+    "url": "https://github.com/joker-sxj"
+  },
+  "plugins": [
+    {
+      "name": "ppt-agent",
+      "source": "./",
+      "description": "端到端 PPT 生成技能:需求调研→大纲→检索→策划→整页 SVG 设计,产出可逐元素编辑的 .pptx + 网页预览。",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["ppt", "powerpoint", "slides", "presentation", "svg", "deck"]
+    }
+  ]
+}
