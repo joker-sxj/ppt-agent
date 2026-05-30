@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Packaged skill artifact (built separately, not source)
+*.skill
