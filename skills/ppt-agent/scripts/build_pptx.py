@@ -39,7 +39,9 @@ EMUPX = 9525          # EMU per SVG px (96 dpi);  1280px -> 12192000 EMU (13.333
 PT = 0.75             # px -> pt
 BASELINE = 0.86       # text baseline offset above box top, in em (calibrated)
 NAMED = {"white": "FFFFFF", "black": "000000", "red": "FF0000"}
-SHAPELIKE = ("rect", "circle", "ellipse", "line", "polyline", "polygon", "text")
+# native-translated elements; polyline/polygon are NOT here on purpose —
+# they fall through to the icon overlay instead of silently vanishing
+SHAPELIKE = ("rect", "circle", "ellipse", "line", "text")
 
 
 def E(v):
@@ -195,6 +197,16 @@ def add_circle(shapes, el, root):
     _noshadow(sp)
 
 
+def add_ellipse(shapes, el, root):
+    cx = float(el.get("cx", 0)); cy = float(el.get("cy", 0))
+    rx = float(el.get("rx", 0)); ry = float(el.get("ry", 0))
+    sp = shapes.add_shape(MSO_SHAPE.OVAL, E(cx - rx), E(cy - ry), E(2 * rx), E(2 * ry))
+    fc = color(inh(el, "fill"))
+    _fill(sp, ("000000" if fc == "MISSING" else fc), root)
+    _line(sp, inh(el, "stroke"), inh(el, "stroke-width"))
+    _noshadow(sp)
+
+
 def add_line(shapes, el):
     cn = shapes.add_connector(MSO_CONNECTOR.STRAIGHT,
                               E(el.get("x1")), E(el.get("y1")),
@@ -331,6 +343,8 @@ def build(svgs, out):
                 add_rect(shapes, el, root)
             elif t == "circle":
                 add_circle(shapes, el, root)
+            elif t == "ellipse":
+                add_ellipse(shapes, el, root)
             elif t == "line":
                 add_line(shapes, el)
             elif t == "text":

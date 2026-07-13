@@ -16,16 +16,20 @@ description: >
 把"人类顶级 PPT 团队"的工作流固化成流水线:需求调研 → 大纲 → 资料检索 → 策划稿 → 整页 SVG 设计 → 预览交付。逐页产出 1280×720 的 SVG,再逐元素翻译成由原生形状 / 文本框组成、打开即可改字改色的 .pptx,并生成网页预览。核心信条:**PPT 的灵魂是内容不是皮囊**——先想清楚为谁做、做什么,再谈设计。
 
 ## 工作流总览
-六阶段顺序执行;**只在 ① 需求、② 大纲两处停下等用户确认**,其余自动跑完。
+七阶段顺序执行;**只在 ① 需求、② 大纲两处停下等用户确认**,其余自动跑完。
 
 | # | 阶段 | 关口 | 读取的提示词 / 资源 | 落盘 |
 |---|---|---|---|---|
 | 1 | 需求调研 | 🛑 等确认 | `prompts/01-requirement-interview.md` | `00-research.md` |
 | 2 | 大纲 | 🛑 等确认 | `prompts/02-outline-architect.md` | `01-outline.json` |
 | 3 | 资料检索 | 自动 | (工具驱动,见下) | `02-content.md` |
-| 4 | 策划稿 | 自动 | `prompts/03-planning.md` + `references/bento-grid.md` | `03-plan.md` |
+| 4 | 策划稿 | 自动 | `prompts/03-planning.md` + `references/bento-grid.md` | `03-plan.md`(含全局风格令牌)、复杂页 `slides/wire-NN.svg` |
 | 5 | SVG 设计 | 自动 | `prompts/04-design-svg.md` + `references/bento-grid.md` | `slides/slide-NN.svg` |
 | 6 | 预览 + 出片 | 自动 | `scripts/build_preview.py`、`scripts/build_pptx.py`、`references/svg-to-powerpoint.md` | `preview.html`、`<主题>.pptx`、`README.md` |
+| 7 | 视觉 QA | 自动 | (渲染逐页检查,见下) | 修复后重出片 |
+
+## 快速通道(跳过已完成阶段)
+用户已提供**确认过的大纲 / 逐页内容**时(如给了大纲文件或对话中已敲定每页写什么),**不得重复问需求、重新生成大纲**:把已有材料整理为 `00-research.md` + `01-outline.json` + `02-content.md` 直接落盘,从阶段 4 开跑。同理,资料已给足则跳过阶段 3。
 
 ## 开始前
 确认或推断 PPT 主题,在当前工作目录下建产物目录 `ppt-decks/<今天日期>-<主题slug>/`(内含 `slides/` 子目录)。用户指定了别的位置就用用户的。
@@ -42,20 +46,28 @@ description: >
 按确认后的大纲**逐页 / 逐节**用 WebSearch / Tavily 检索,为每页备齐要点、数据、案例(标注来源),汇总写入 `02-content.md`、按大纲结构组织。(用户已给足素材或主题无需外部资料时,可精简此步。)
 
 ### 阶段 4 · 策划稿(自动)
-读 `prompts/03-planning.md` 与 `references/bento-grid.md`,结合 `01-outline.json` + `02-content.md`,为每页规划版面(便当组合、视觉层级、占位元素),写入 `03-plan.md`。
+读 `prompts/03-planning.md` 与 `references/bento-grid.md`,结合 `01-outline.json` + `02-content.md`:先定**全局风格令牌**(主辅色/字号阶梯/卡片圆角/视觉母题,写在 `03-plan.md` 开头),再为每页规划版面(便当组合、视觉层级、占位元素),写入 `03-plan.md`;对复杂页(≥4 个内容块或用户指明的重点页)另产出低保真线框 `slides/wire-NN.svg`。
 
 ### 阶段 5 · SVG 设计(自动)
-读 `prompts/04-design-svg.md` 与 `references/bento-grid.md`。**逐页**把该页在 `03-plan.md` 的规划填入 `{{PAGE_PLAN}}`、该页内容填入 `{{PAGE_CONTENT}}`、需求中的风格填入 `{{STYLE}}`,生成纯 SVG,存为 `slides/slide-01.svg`、`slide-02.svg`……(两位数序号,与页序一致)。
+读 `prompts/04-design-svg.md` 与 `references/bento-grid.md`。**逐页**把该页在 `03-plan.md` 的规划填入 `{{PAGE_PLAN}}`、该页内容填入 `{{PAGE_CONTENT}}`、需求中的风格填入 `{{STYLE}}`、`03-plan.md` 开头的风格令牌填入 `{{STYLE_TOKENS}}`(每页相同、原样注入),生成纯 SVG,存为 `slides/slide-01.svg`、`slide-02.svg`……(两位数序号,与页序一致)。有线框的页面以线框为版面基准。
 
 ### 阶段 6 · 预览 + 出片(自动)
 1. **预览**:运行 `scripts/build_preview.py <产物目录>`,生成 `preview.html`。
 2. **出 .pptx**:运行 `scripts/build_pptx.py <产物目录> [<输出名>.pptx]`——把每页 SVG **逐元素翻译成原生 PowerPoint 形状**(矩形/圆角矩形、椭圆、连接线、文本框、渐变填充逐一还原),**打开即可直接改字、改色、挪位置**;只有复杂图标/箭头/装饰路径(`<path>` 与浅色 `<g opacity>`)合成一张透明 PNG 叠在最上层。依赖 `python-pptx`、`lxml`;图标叠层需任一 SVG 渲染器(Chrome/Edge / rsvg-convert / inkscape / cairosvg / LibreOffice,脚本自动探测,缺了就跳过图标);Windows 加 `PYTHONUTF8=1` 跑。
 3. **README**:按 `references/svg-to-powerpoint.md` 写 `README.md`(主题 / 页数 / 风格 + 如何打开 .pptx,附手工导入 SVG 的兜底法)。
 
+### 阶段 7 · 视觉 QA(自动)
+把 .pptx 渲染成逐页图片检查(LibreOffice `soffice --headless --convert-to pdf` + `pdftoppm -jpeg -r 150`;都不可用时退化为逐页审读 SVG 源码核对坐标)。逐页检查:
+- 文字溢出卡片 / 画布边界(最常见,优先查)
+- 元素重叠、卡片间距 <20px、明显失衡的留白
+- 页与页配色 / 字号不一致(违反风格令牌)
+- 低对比(浅底浅字、深底深字)
+发现问题→回改对应 `slides/slide-NN.svg`→重跑阶段 6 出片,直至通过。**QA 未通过不得向用户交付。**
+
 最后报告产物目录,提示用户直接打开 `<主题>.pptx`,或先看 `preview.html` 通览。
 
 ## 关键约束
-- **不跳过两道关口**:需求、大纲未经用户确认,不得进入后续自动阶段。
+- **不跳过两道关口**:需求、大纲未经用户确认,不得进入后续自动阶段(快速通道除外——用户已确认的材料即视为过关)。
 - **SVG 严格 `viewBox="0 0 1280 720"`**:文字用 `<text>`(可编辑)、不引外部资源。
 - **重要 PPT**:用户要求时可在阶段 4 后加设一道"看策划稿再出图"的确认关;默认不停。
-- 阶段 6 自动产出 .pptx(每页逐元素翻译成原生形状 / 文本框,打开即可改字改色;仅复杂图标走透明 PNG 叠层)。但**若起点是已有 .pptx 模板、或要做幻灯片级 OOXML 增删 / 文本提取**,那是 `pptx` 技能的活,转过去。
+- 阶段 6 自动产出 .pptx(每页逐元素翻译成原生形状 / 文本框,打开即可改字改色;仅复杂图标走透明 PNG 叠层),阶段 7 视觉 QA 通过后方可交付。但**若起点是已有 .pptx 模板、或要做幻灯片级 OOXML 增删 / 文本提取**,那是 `pptx` 技能的活,转过去。
